@@ -1,9 +1,14 @@
+// FILE INI HARUS DI: app/dashboard/page.tsx
+
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/types/database.types';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
 };
+
+type HdUserRow = Database['public']['Tables']['hd_users']['Row'];
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -11,11 +16,16 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
+  const { data } = await supabase
     .from('hd_users')
     .select('*')
     .eq('id', user!.id)
     .single();
+
+  // CATATAN TEKNIS: cast eksplisit karena parser tipe select() postgrest-js
+  // kadang gagal resolve (known limitation) -- lihat catatan yang sama di
+  // app/dashboard/layout.tsx.
+  const profile = data as HdUserRow | null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -61,4 +71,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-
