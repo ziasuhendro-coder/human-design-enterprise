@@ -24,7 +24,7 @@ export type HdAuditAction =
   | 'login_failed'
   | 'suspicious_activity';
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       hd_users: {
