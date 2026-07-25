@@ -1,7 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -20,7 +19,7 @@ function SubmitButton() {
 }
 
 export default function LoginForm() {
-  const [state, formAction] = useActionState(loginAction, initialState);
+  const [state, formAction] = useFormState(loginAction, initialState);
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,26 +45,23 @@ export default function LoginForm() {
           required
         />
 
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-foreground-muted">
-              Password
-            </label>
-            <Link href="/forgot-password" className="text-sm text-primary hover:text-primary-hover">
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          label="Password"
+          labelRight={
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary hover:text-primary-hover"
+            >
               Lupa password?
             </Link>
-          </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            label=""
-            className="mt-[-1.5rem]"
-            autoComplete="current-password"
-            error={state.fieldErrors?.password}
-            required
-          />
-        </div>
+          }
+          autoComplete="current-password"
+          error={state.fieldErrors?.password}
+          required
+        />
 
         <SubmitButton />
       </form>
@@ -79,4 +75,3 @@ export default function LoginForm() {
     </div>
   );
 }
-
