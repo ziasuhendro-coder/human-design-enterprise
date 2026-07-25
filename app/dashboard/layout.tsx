@@ -1,6 +1,11 @@
+// FILE INI HARUS DI: app/dashboard/layout.tsx
+
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { logoutAction } from '@/app/dashboard/actions';
+import type { Database } from '@/lib/types/database.types';
+
+type HdUserRow = Database['public']['Tables']['hd_users']['Row'];
 
 export default async function DashboardLayout({
   children,
@@ -19,11 +24,17 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  const { data: profile } = await supabase
+  // CATATAN TEKNIS: cast eksplisit ke HdUserRow karena parser tipe otomatis
+  // dari string select() di postgrest-js kadang gagal resolve (known
+  // limitation), menghasilkan tipe 'never'. Cast manual ini tetap
+  // type-safe karena HdUserRow adalah interface yang benar-benar
+  // mencerminkan schema database (lihat lib/types/database.types.ts).
+  const { data } = await supabase
     .from('hd_users')
     .select('email, full_name, role')
     .eq('id', user.id)
     .single();
+  const profile = data as Pick<HdUserRow, 'email' | 'full_name' | 'role'> | null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,4 +61,3 @@ export default async function DashboardLayout({
     </div>
   );
 }
-
