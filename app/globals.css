@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Fokus keyboard yang jelas dan konsisten -- wajib untuk aksesibilitas */
+  :focus-visible {
+    outline: 2px solid theme('colors.primary.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Hormati preferensi pengguna yang mengurangi motion (aksesibilitas) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /*
+   * Motif signature: garis-garis tipis membentuk poligon terhubung,
+   * terinspirasi struktur bodygraph (9 pusat energi saling terhubung)
+   * tanpa mereplikasi chart Human Design asli. Dipakai sebagai ambient
+   * background di halaman auth.
+   */
+  .bg-constellation {
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(110, 86, 207, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 85% 75%, rgba(232, 163, 61, 0.1) 0%, transparent 40%),
+      linear-gradient(135deg, transparent 49.5%, rgba(110, 86, 207, 0.06) 50%, transparent 50.5%);
+    background-size: 100% 100%, 100% 100%, 60px 60px;
+  }
+}
+
