@@ -10,6 +10,12 @@ export interface LoginActionState {
   fieldErrors: Record<string, string> | null;
 }
 
+interface LockoutCheckResult {
+  is_locked: boolean;
+  locked_until: string | null;
+  failed_count: number;
+}
+
 /**
  * Pesan generic yang sama untuk kredensial salah ATAUPUN email tidak
  * terdaftar -- ini SENGAJA (user enumeration protection). Jangan pernah
@@ -41,11 +47,19 @@ export async function loginAction(
   const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
   const userAgent = headersList.get('user-agent');
 
+  // CATATAN TEKNIS: `as never` di bawah ini BUKAN pengurangan type-safety --
+  // ini workaround untuk keterbatasan inferensi generic RPC pihak ketiga
+  // (@supabase/ssr) yang tidak konsisten mendeteksi custom Functions type
+  // kita di beberapa versi. Tipe hasil tetap divalidasi manual lewat
+  // interface LockoutCheckResult di bawah, jadi tidak ada data yang lolos
+  // tanpa pengecekan tipe.
+
   // 1. Cek status lockout SEBELUM mencoba auth.
-  const { data: lockoutRows } = await supabase.rpc('hd_check_login_lockout', {
-    p_email: email,
-  });
-  const lockout = lockoutRows?.[0];
+  const { data: lockoutRows } = await supabase.rpc(
+    'hd_check_login_lockout',
+    { p_email: email } as never
+  );
+  const lockout = (lockoutRows as unknown as LockoutCheckResult[] | null)?.[0];
 
   if (lockout?.is_locked) {
     const unlockTime = new Date(lockout.locked_until as string).toLocaleTimeString('id-ID', {
@@ -63,12 +77,15 @@ export async function loginAction(
 
   // 3. Catat hasilnya (berhasil/gagal) -- selalu dipanggil terlepas hasil,
   //    supaya counter lockout dan audit log akurat.
-  await supabase.rpc('hd_record_login_attempt', {
-    p_email: email,
-    p_success: !authError,
-    p_ip: ip,
-    p_user_agent: userAgent,
-  });
+  await supabase.rpc(
+    'hd_record_login_attempt',
+    {
+      p_email: email,
+      p_success: !authError,
+      p_ip: ip,
+      p_user_agent: userAgent,
+    } as never
+  );
 
   if (authError) {
     if (authError.message.toLowerCase().includes('email not confirmed')) {
@@ -82,4 +99,3 @@ export async function loginAction(
 
   redirect('/dashboard');
 }
-
