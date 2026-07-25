@@ -110,5 +110,8 @@ export interface Database {
         Returns: void;
       };
     };
+    Views: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
