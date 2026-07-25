@@ -1,7 +1,7 @@
 'use client';
 
-import { useActionState, useState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState, useEffect } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
@@ -45,13 +45,15 @@ function PasswordStrengthHint({ password }: { password: string }) {
 }
 
 export default function SignupForm() {
-  const [state, formAction] = useActionState(signupAction, initialState);
+  const [state, formAction] = useFormState(signupAction, initialState);
   const [password, setPassword] = useState('');
   const router = useRouter();
 
-  if (state.success) {
-    router.push('/verify-email');
-  }
+  useEffect(() => {
+    if (state.success) {
+      router.push('/verify-email');
+    }
+  }, [state.success, router]);
 
   return (
     <div className="flex flex-col gap-6">
