@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
+import type { Database } from '@/lib/types/database.types';
 
 type CookieToSet = {
   name: string;
@@ -8,56 +9,60 @@ type CookieToSet = {
 };
 
 /**
- * Merefresh token Auth Supabase di setiap request (Server Components tidak
- * bisa menulis cookie, jadi refresh HARUS terjadi di middleware) dan
- * melakukan route protection dasar untuk halaman yang butuh login.
+ * Supabase client untuk Server Components, Server Actions, dan Route Handlers.
+ *
+ * PENTING (keamanan): di kode server, SELALU verifikasi sesi lewat
+ * `supabase.auth.getUser()`, JANGAN pakai `getSession()` untuk keputusan
+ * otorisasi. `getUser()` memvalidasi token langsung ke Supabase Auth server,
+ * sedangkan `getSession()` hanya membaca cookie lokal yang bisa dipalsukan
+ * di sisi client tanpa validasi ulang.
  */
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+export function createClient() {
+  const cookieStore = cookies();
 
-  const supabase = createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll();
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // `setAll` dipanggil dari Server Component -- ini aman diabaikan
+            // selama middleware.ts sudah menangani refresh sesi. Next.js
+            // tidak mengizinkan Server Component menulis cookie langsung.
+          }
         },
       },
     }
   );
+}
 
-  // PENTING: getUser() memvalidasi token ke server Auth Supabase (bukan
-  // sekadar membaca cookie), jadi ini titik tepercaya untuk cek status login.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
-  const isProtectedRoute = pathname.startsWith('/dashboard');
-
-  if (!user && isProtectedRoute) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/login';
-    redirectUrl.searchParams.set('redirectTo', pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (user && isAuthRoute) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/dashboard';
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // PENTING: response ini harus dikembalikan apa adanya (jangan buat
-  // NextResponse baru tanpa menyalin cookies) supaya sesi tetap tersinkron.
-  return supabaseResponse;
+/**
+ * Admin client dengan service_role key -- BYPASS RLS sepenuhnya.
+ * HANYA dipakai di Server Actions/Route Handlers untuk operasi istimewa
+ * (mis. promosi role oleh master). JANGAN PERNAH import ini di kode yang
+ * bisa dijangkau Client Component.
+ */
+export function createAdminClient() {
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {
+          // Admin client tidak pernah menulis cookie sesi.
+        },
+      },
+    }
+  );
 }
