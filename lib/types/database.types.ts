@@ -91,6 +91,24 @@ export interface Database {
         Update: never; // Audit log immutable -- tidak boleh di-update
       };
     };
+    Functions: {
+      hd_check_login_lockout: {
+        Args: { p_email: string };
+        Returns: {
+          is_locked: boolean;
+          locked_until: string | null;
+          failed_count: number;
+        }[];
+      };
+      hd_record_login_attempt: {
+        Args: {
+          p_email: string;
+          p_success: boolean;
+          p_ip?: string | null;
+          p_user_agent?: string | null;
+        };
+        Returns: void;
+      };
+    };
   };
 }
-
