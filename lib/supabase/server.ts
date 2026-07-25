@@ -2,6 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database.types';
 
+type CookieToSet = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
+
 /**
  * Supabase client untuk Server Components, Server Actions, dan Route Handlers.
  *
@@ -22,10 +28,10 @@ export function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options as CookieOptions);
+              cookieStore.set(name, value, options);
             });
           } catch {
             // `setAll` dipanggil dari Server Component -- ini aman diabaikan
@@ -60,4 +66,3 @@ export function createAdminClient() {
     }
   );
 }
-
