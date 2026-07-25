@@ -1,3 +1,6 @@
+// FILE INI HARUS DI: lib/supabase/server.ts
+// (BUKAN lib/supabase/middleware.ts -- itu file BERBEDA)
+
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database.types';
@@ -8,15 +11,6 @@ type CookieToSet = {
   options: CookieOptions;
 };
 
-/**
- * Supabase client untuk Server Components, Server Actions, dan Route Handlers.
- *
- * PENTING (keamanan): di kode server, SELALU verifikasi sesi lewat
- * `supabase.auth.getUser()`, JANGAN pakai `getSession()` untuk keputusan
- * otorisasi. `getUser()` memvalidasi token langsung ke Supabase Auth server,
- * sedangkan `getSession()` hanya membaca cookie lokal yang bisa dipalsukan
- * di sisi client tanpa validasi ulang.
- */
 export function createClient() {
   const cookieStore = cookies();
 
@@ -34,9 +28,8 @@ export function createClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // `setAll` dipanggil dari Server Component -- ini aman diabaikan
-            // selama middleware.ts sudah menangani refresh sesi. Next.js
-            // tidak mengizinkan Server Component menulis cookie langsung.
+            // `setAll` dipanggil dari Server Component -- aman diabaikan
+            // selama middleware.ts menangani refresh sesi.
           }
         },
       },
@@ -44,12 +37,6 @@ export function createClient() {
   );
 }
 
-/**
- * Admin client dengan service_role key -- BYPASS RLS sepenuhnya.
- * HANYA dipakai di Server Actions/Route Handlers untuk operasi istimewa
- * (mis. promosi role oleh master). JANGAN PERNAH import ini di kode yang
- * bisa dijangkau Client Component.
- */
 export function createAdminClient() {
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
