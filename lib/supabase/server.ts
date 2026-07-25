@@ -1,8 +1,8 @@
 // FILE INI HARUS DI: lib/supabase/server.ts
-// (BUKAN lib/supabase/middleware.ts -- itu file BERBEDA)
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database.types';
 
 type CookieToSet = {
@@ -11,7 +11,7 @@ type CookieToSet = {
   options: CookieOptions;
 };
 
-export function createClient() {
+export function createClient(): SupabaseClient<Database> {
   const cookieStore = cookies();
 
   return createServerClient<Database>(
@@ -37,7 +37,7 @@ export function createClient() {
   );
 }
 
-export function createAdminClient() {
+export function createAdminClient(): SupabaseClient<Database> {
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
