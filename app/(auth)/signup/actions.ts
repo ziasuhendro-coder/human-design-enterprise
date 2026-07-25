@@ -55,9 +55,15 @@ export async function signupAction(
         success: false,
       };
     }
+    if (authError.status === 429) {
+      return {
+        error: 'Terlalu banyak percobaan pendaftaran. Silakan coba lagi dalam beberapa menit.',
+        fieldErrors: null,
+        success: false,
+      };
+    }
     return { error: 'Terjadi kesalahan saat mendaftar. Silakan coba lagi.', fieldErrors: null, success: false };
   }
 
   return { error: null, fieldErrors: null, success: true };
 }
-
