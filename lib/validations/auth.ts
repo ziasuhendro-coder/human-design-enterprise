@@ -69,8 +69,17 @@ export const forgotPasswordSchema = z.object({
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
-export const resetPasswordSchema = z
+export const verifyOtpResetSchema = z
   .object({
+    email: z
+      .string({ required_error: 'Email wajib diisi' })
+      .email('Format email tidak valid')
+      .toLowerCase()
+      .trim(),
+    otp: z
+      .string({ required_error: 'Kode wajib diisi' })
+      .length(6, 'Kode harus 6 digit')
+      .regex(/^\d{6}$/, 'Kode harus berupa 6 angka'),
     password: z
       .string({ required_error: 'Password wajib diisi' })
       .min(8, 'Password minimal 8 karakter')
@@ -85,4 +94,4 @@ export const resetPasswordSchema = z
     path: ['confirmPassword'],
   });
 
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyOtpResetInput = z.infer<typeof verifyOtpResetSchema>;
