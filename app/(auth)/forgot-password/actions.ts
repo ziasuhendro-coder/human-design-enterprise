@@ -37,7 +37,7 @@ export async function forgotPasswordAction(
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/callback?redirectTo=/reset-password`,
+    redirectTo: `${siteUrl}/auth/reset-callback`,
   });
 
   // CATATAN KEAMANAN: kita TIDAK mengecek isi `error` untuk membedakan
@@ -48,4 +48,3 @@ export async function forgotPasswordAction(
 
   return { error: null, fieldErrors: null, success: true };
 }
-
