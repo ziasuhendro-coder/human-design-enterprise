@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI ISI FILE YANG SUDAH ADA
 // PATH  : app/id/x9-panel/page.tsx
 // =====================================================
 
@@ -22,7 +22,7 @@ export default async function MasterPanelPage() {
     .from('hd_users')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .single<{ role: string }>();
 
   if (profile?.role !== 'master') {
     redirect('/dashboard');
@@ -32,7 +32,8 @@ export default async function MasterPanelPage() {
   const { data: users } = await supabase
     .from('hd_users')
     .select('id, email, full_name')
-    .order('email', { ascending: true });
+    .order('email', { ascending: true })
+    .returns<{ id: string; email: string; full_name: string | null }[]>();
 
   // Ambil daftar lisensi yang sudah dibuat, sekalian join info user
   const { data: licenses } = await supabase
@@ -48,7 +49,18 @@ export default async function MasterPanelPage() {
       created_at,
       assigned_user:assigned_user_id ( email, full_name )
     `)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .returns<{
+      id: string;
+      code: string;
+      license_type: string;
+      status: string;
+      activated_at: string;
+      expires_at: string;
+      notes: string | null;
+      created_at: string;
+      assigned_user: { email: string; full_name: string | null } | null;
+    }[]>();
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-8 max-w-3xl mx-auto">
