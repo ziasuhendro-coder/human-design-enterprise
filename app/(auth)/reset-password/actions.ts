@@ -1,28 +1,27 @@
-// FILE INI HARUS DI: app/(auth)/forgot-password/actions.ts
+// ============================================================
+// AKSI: BUAT FILE BARU
+// PATH   : app/(auth)/reset-password/actions.ts
+// ============================================================
 
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { forgotPasswordSchema } from '@/lib/validations/auth';
+import { resetPasswordSchema } from '@/lib/validations/auth';
 
-export interface ForgotPasswordActionState {
+export interface ResetPasswordActionState {
   error: string | null;
   fieldErrors: Record<string, string> | null;
   success: boolean;
 }
 
-/**
- * CATATAN: Kembali memakai alur link (bukan OTP) sebagai solusi sementara
- * -- setup SMTP custom sempat bermasalah (Supabase melapor sukses kirim
- * tapi email tidak sampai di Resend). Ini dicatat sebagai item perbaikan
- * sebelum go-live publik. Alur link ini sudah terbukti berhasil sebelumnya
- * memakai layanan email bawaan Supabase.
- */
-export async function forgotPasswordAction(
-  _prevState: ForgotPasswordActionState,
+export async function resetPasswordAction(
+  _prevState: ResetPasswordActionState,
   formData: FormData
-): Promise<ForgotPasswordActionState> {
-  const parsed = forgotPasswordSchema.safeParse({ email: formData.get('email') });
+): Promise<ResetPasswordActionState> {
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get('password'),
+    confirmPassword: formData.get('confirmPassword'),
+  });
 
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -32,17 +31,32 @@ export async function forgotPasswordAction(
     return { error: null, fieldErrors, success: false };
   }
 
-  const { email } = parsed.data;
   const supabase = createClient();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-  // CATATAN KEAMANAN: kita TIDAK mengecek isi error untuk membedakan "email
-  // tidak ditemukan" vs error lain -- selalu tampilkan pesan sukses generic
-  // yang sama (user enumeration protection).
-  await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/reset-callback`,
-  });
+  // Butuh sesi recovery yang valid (dibuat oleh /auth/callback setelah
+  // pengguna klik link email). Kalau tidak ada sesi, berarti pengguna
+  // membuka halaman ini langsung tanpa lewat link yang sah.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: 'Sesi reset password sudah kedaluwarsa. Silakan minta link baru.',
+      fieldErrors: null,
+      success: false,
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+
+  if (error) {
+    return {
+      error: 'Gagal mengubah password. Silakan coba lagi atau minta link baru.',
+      fieldErrors: null,
+      success: false,
+    };
+  }
 
   return { error: null, fieldErrors: null, success: true };
 }
-
