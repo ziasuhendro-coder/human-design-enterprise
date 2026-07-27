@@ -1,8 +1,3 @@
-# =====================================================
-# AKSI: BUAT FILE BARU
-# PATH  : .github/workflows/deploy-functions.yml
-# =====================================================
-
 name: Deploy Supabase Edge Functions
 
 on:
@@ -27,14 +22,40 @@ jobs:
           FUNCTION_NAME="assign-license"
           FUNCTION_BODY=$(cat supabase/functions/${FUNCTION_NAME}/index.ts | jq -Rs .)
 
-          curl -X POST \
+          # Coba update dulu (kalau function sudah pernah ada)
+          UPDATE_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X PATCH \
             "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/${FUNCTION_NAME}" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "{
-              \"slug\": \"${FUNCTION_NAME}\",
-              \"name\": \"${FUNCTION_NAME}\",
               \"verify_jwt\": true,
               \"body\": ${FUNCTION_BODY}
-            }" \
-            --fail-with-body
+            }")
+
+          echo "Update status: ${UPDATE_STATUS}"
+          cat /tmp/response.json
+
+          if [ "$UPDATE_STATUS" -eq 404 ]; then
+            echo "Function belum ada, membuat baru..."
+            CREATE_STATUS=$(curl -s -o /tmp/response2.json -w "%{http_code}" -X POST \
+              "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions" \
+              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"slug\": \"${FUNCTION_NAME}\",
+                \"name\": \"${FUNCTION_NAME}\",
+                \"verify_jwt\": true,
+                \"body\": ${FUNCTION_BODY}
+              }")
+
+            echo "Create status: ${CREATE_STATUS}"
+            cat /tmp/response2.json
+
+            if [ "$CREATE_STATUS" -ge 300 ]; then
+              exit 1
+            fi
+          elif [ "$UPDATE_STATUS" -ge 300 ]; then
+            exit 1
+          fi
+
+          echo "Deploy selesai."
