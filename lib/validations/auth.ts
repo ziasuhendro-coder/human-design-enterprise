@@ -1,3 +1,8 @@
+// ============================================================
+// AKSI: GANTI ISI FILE YANG SUDAH ADA
+// PATH   : lib/validations/auth.ts
+// ============================================================
+
 import { z } from 'zod';
 
 /**
@@ -95,3 +100,23 @@ export const verifyOtpResetSchema = z
   });
 
 export type VerifyOtpResetInput = z.infer<typeof verifyOtpResetSchema>;
+
+// Skema untuk alur LINK (dipakai kembali sebagai fallback sementara,
+// lihat catatan di PANDUAN_BAGIAN_3_REVISI.md soal alasan revert).
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string({ required_error: 'Password wajib diisi' })
+      .min(8, 'Password minimal 8 karakter')
+      .max(72, 'Password terlalu panjang')
+      .regex(/[a-z]/, 'Password harus mengandung huruf kecil')
+      .regex(/[A-Z]/, 'Password harus mengandung huruf besar')
+      .regex(/[0-9]/, 'Password harus mengandung angka'),
+    confirmPassword: z.string({ required_error: 'Konfirmasi password wajib diisi' }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Konfirmasi password tidak cocok',
+    path: ['confirmPassword'],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
