@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI ISI FILE YANG SUDAH ADA
 // PATH  : supabase/functions/assign-license/index.ts
 // =====================================================
 
@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: callerProfile, error: profileErr } = await supabaseAdmin
       .from('hd_users')
-      .select('role')
+      .select('role, email')
       .eq('id', user.id)
       .single();
 
@@ -115,11 +115,15 @@ Deno.serve(async (req: Request) => {
 
     if (insertErr) throw insertErr;
 
-    // Catat ke audit log
+    // Catat ke audit log — sesuai struktur tabel hd_audit_log yang sebenarnya
     await supabaseAdmin.from('hd_audit_log').insert({
       actor_id: user.id,
-      action: 'assign_license',
-      details: {
+      actor_email: callerProfile.email,
+      action: 'license_assigned',
+      target_id: license.id,
+      target_table: 'hd_licenses',
+      description: `Lisensi ${license.code} (${license_type}) diberikan ke ${targetUser.email}`,
+      metadata: {
         license_code: license.code,
         target_user_email: targetUser.email,
         license_type,
