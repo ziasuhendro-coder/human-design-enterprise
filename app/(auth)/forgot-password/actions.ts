@@ -1,22 +1,25 @@
-// FILE INI HARUS DI: app/(auth)/forgot-password/actions.ts
+// ============================================================
+// AKSI: GANTI ISI FILE YANG SUDAH ADA
+// PATH   : app/(auth)/forgot-password/actions.ts
+// ============================================================
 
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { forgotPasswordSchema, verifyOtpResetSchema } from '@/lib/validations/auth';
+import { forgotPasswordSchema } from '@/lib/validations/auth';
 
 export interface ForgotPasswordActionState {
   error: string | null;
   fieldErrors: Record<string, string> | null;
   success: boolean;
-  email: string | null;
 }
 
 /**
- * Langkah 1: kirim kode OTP 6-digit ke email. TIDAK memakai redirectTo /
- * link sama sekali -- user akan memasukkan kode secara manual di langkah 2,
- * sehingga kebal dari masalah link "termakan" oleh pemindai email otomatis
- * (Gmail, Outlook, dsb).
+ * CATATAN: Kembali memakai alur link (bukan OTP) sebagai solusi sementara
+ * -- setup SMTP custom sempat bermasalah (Supabase melapor sukses kirim
+ * tapi email tidak sampai di Resend). Ini dicatat sebagai item perbaikan
+ * sebelum go-live publik. Alur link ini sudah terbukti berhasil sebelumnya
+ * memakai layanan email bawaan Supabase.
  */
 export async function forgotPasswordAction(
   _prevState: ForgotPasswordActionState,
@@ -29,76 +32,19 @@ export async function forgotPasswordAction(
     parsed.error.errors.forEach((err) => {
       if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
     });
-    return { error: null, fieldErrors, success: false, email: null };
+    return { error: null, fieldErrors, success: false };
   }
 
   const { email } = parsed.data;
   const supabase = createClient();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
   // CATATAN KEAMANAN: kita TIDAK mengecek isi error untuk membedakan "email
   // tidak ditemukan" vs error lain -- selalu tampilkan pesan sukses generic
   // yang sama (user enumeration protection).
-  await supabase.auth.resetPasswordForEmail(email);
-
-  return { error: null, fieldErrors: null, success: true, email };
-}
-
-export interface VerifyOtpResetActionState {
-  error: string | null;
-  fieldErrors: Record<string, string> | null;
-  success: boolean;
-}
-
-/**
- * Langkah 2: verifikasi kode OTP + set password baru sekaligus.
- * verifyOtp() dengan type 'recovery' membuat sesi valid (identitas
- * terverifikasi lewat kode), lalu langsung dipakai untuk updateUser().
- */
-export async function verifyOtpResetAction(
-  _prevState: VerifyOtpResetActionState,
-  formData: FormData
-): Promise<VerifyOtpResetActionState> {
-  const parsed = verifyOtpResetSchema.safeParse({
-    email: formData.get('email'),
-    otp: formData.get('otp'),
-    password: formData.get('password'),
-    confirmPassword: formData.get('confirmPassword'),
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/auth/reset-callback`,
   });
-
-  if (!parsed.success) {
-    const fieldErrors: Record<string, string> = {};
-    parsed.error.errors.forEach((err) => {
-      if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
-    });
-    return { error: null, fieldErrors, success: false };
-  }
-
-  const { email, otp, password } = parsed.data;
-  const supabase = createClient();
-
-  const { error: verifyError } = await supabase.auth.verifyOtp({
-    email,
-    token: otp,
-    type: 'recovery',
-  });
-
-  if (verifyError) {
-    return {
-      error: 'Kode salah atau sudah kedaluwarsa. Silakan minta kode baru.',
-      fieldErrors: null,
-      success: false,
-    };
-  }
-
-  const { error: updateError } = await supabase.auth.updateUser({ password });
-
-  if (updateError) {
-    return {
-      error: 'Gagal mengubah password. Silakan coba lagi.',
-      fieldErrors: null,
-      success: false,
-    };
-  }
 
   return { error: null, fieldErrors: null, success: true };
 }
