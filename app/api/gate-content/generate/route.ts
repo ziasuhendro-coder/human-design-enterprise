@@ -1,6 +1,6 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
-// PATH  : app/api/admin/gate-content/generate/route.ts
+// AKSI: GANTI SELURUH ISI FILE
+// PATH  : app/api/gate-content/generate/route.ts
 // =====================================================
 // PENTING: Route ini butuh env var ANTHROPIC_API_KEY di Vercel
 // (Settings -> Environment Variables -> tambahkan untuk Production).
@@ -131,7 +131,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error: upsertError } = await supabase.from('hd_gate_content').upsert({
+  // hd_gate_content belum terdaftar di Supabase generated types,
+  // jadi kita cast ke `any` di sini supaya TypeScript tidak
+  // memaksa tabel ini bertipe `never`.
+  const { error: upsertError } = await (supabase.from('hd_gate_content') as any).upsert({
     gate_number: gateNumber,
     content_id: parsed.content_id,
     content_en: parsed.content_en,
@@ -147,4 +150,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, content_id: parsed.content_id, content_en: parsed.content_en });
-      }
+}
