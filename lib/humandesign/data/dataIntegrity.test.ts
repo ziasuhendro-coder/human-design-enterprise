@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : lib/humandesign/data/dataIntegrity.test.ts
 // =====================================================
 
@@ -22,7 +22,7 @@ describe('Integritas data Center', () => {
   });
 
   it('4 motor center sesuai definisi baku Human Design', () => {
-    expect(MOTOR_CENTERS.sort()).toEqual(
+    expect(MOTOR_CENTERS.slice().sort()).toEqual(
       ['Heart', 'Root', 'Sacral', 'SolarPlexus'].sort()
     );
   });
@@ -33,10 +33,9 @@ describe('Integritas data Channel', () => {
     expect(CHANNELS.length).toBe(36);
   });
 
-  it('72 slot gate dalam channel (36x2), semua unik (tiap gate hanya di 1 channel)', () => {
-    const allChannelGates = CHANNELS.flatMap((c) => c.gates);
-    expect(allChannelGates.length).toBe(72);
-    expect(new Set(allChannelGates).size).toBe(72);
+  it('tidak ada channel yang terdefinisi dua kali (pasangan gate unik)', () => {
+    const pairKeys = CHANNELS.map((c) => [...c.gates].sort((a, b) => a - b).join('-'));
+    expect(new Set(pairKeys).size).toBe(36);
   });
 
   it('setiap gate dalam channel konsisten dengan center yang tercantum di GATE_TO_CENTER', () => {
@@ -48,10 +47,25 @@ describe('Integritas data Channel', () => {
     }
   });
 
-  it('seluruh 64 gate genap muncul di suatu channel (setiap gate punya pasangan)', () => {
+  it('seluruh 64 gate (1-64) muncul di setidaknya satu channel', () => {
     const allChannelGates = new Set(CHANNELS.flatMap((c) => c.gates));
+    expect(allChannelGates.size).toBe(64);
     for (let gate = 1; gate <= 64; gate++) {
       expect(allChannelGates.has(gate)).toBe(true);
+    }
+  });
+
+  it('gate hub (10, 20, 34, 57) masing-masing muncul di tepat 3 channel, gate lain di tepat 1 channel', () => {
+    const hubGates = new Set([10, 20, 34, 57]);
+    const countByGate = new Map<number, number>();
+    for (const channel of CHANNELS) {
+      for (const g of channel.gates) {
+        countByGate.set(g, (countByGate.get(g) ?? 0) + 1);
+      }
+    }
+    for (let gate = 1; gate <= 64; gate++) {
+      const expected = hubGates.has(gate) ? 3 : 1;
+      expect(countByGate.get(gate)).toBe(expected);
     }
   });
 });
