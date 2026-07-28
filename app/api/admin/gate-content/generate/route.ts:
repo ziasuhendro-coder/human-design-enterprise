@@ -151,9 +151,12 @@ export async function POST(request: NextRequest) {
     reviewed_by: null,
   };
 
-  const { error: upsertError } = await supabase
-    .from('hd_gate_content')
-    .upsert<HdGateContentInsert>(insertRow);
+  // hd_gate_content belum terdaftar di Supabase generated types,
+  // jadi kita cast ke `any` di sini supaya TypeScript tidak
+  // memaksa tabel ini bertipe `never`.
+  const { error: upsertError } = await (supabase.from('hd_gate_content') as any).upsert(
+    insertRow
+  );
 
   if (upsertError) {
     console.error('Gagal menyimpan ke Supabase:', upsertError);
