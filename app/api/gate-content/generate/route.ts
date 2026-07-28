@@ -1,0 +1,150 @@
+// =====================================================
+// AKSI: BUAT FILE BARU
+// PATH  : app/api/admin/gate-content/generate/route.ts
+// =====================================================
+// PENTING: Route ini butuh env var ANTHROPIC_API_KEY di Vercel
+// (Settings -> Environment Variables -> tambahkan untuk Production).
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { GATE_NAMES } from '@/lib/humandesign/data/gateNames';
+import { GATE_CONTENT_FIELD_KEYS } from '@/lib/humandesign/data/gateContentSchema';
+
+interface GenerateRequestBody {
+  gateNumber: number;
+}
+
+function buildPrompt(gateNumber: number, gateName: string): string {
+  return `Kamu adalah penulis konten profesional untuk aplikasi self-knowledge Human Design Enterprise.
+
+Tulis interpretasi ORISINAL (bukan salinan dari situs Human Design manapun, termasuk Jovian Archive) untuk Gate ${gateNumber} ("${gateName}") dalam sistem Human Design.
+
+Tulis dalam gaya profesional, mudah dipahami untuk pemula maupun lanjutan, dengan nuansa psikologis-praktis (bukan mistis berlebihan).
+
+Field yang harus diisi (semua dalam bentuk teks 2-4 kalimat per field, kecuali affirmation dan journalPrompt yang 1 kalimat): ${GATE_CONTENT_FIELD_KEYS}
+
+Balas HANYA dengan JSON valid, TANPA teks lain, TANPA markdown code fence, dengan struktur PERSIS seperti ini:
+{
+  "content_id": { <20 field di atas, isi dalam Bahasa Indonesia> },
+  "content_en": { <20 field yang sama, isi dalam Bahasa Inggris> }
+}`;
+}
+
+function stripCodeFences(text: string): string {
+  return text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('hd_users')
+    .select('role')
+    .eq('id', user.id)
+    .single<{ role: string }>();
+
+  if (!profile || profile.role !== 'master') {
+    return NextResponse.json({ error: 'Hanya master yang boleh generate konten' }, { status: 403 });
+  }
+
+  let body: GenerateRequestBody;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Body request bukan JSON valid' }, { status: 400 });
+  }
+
+  const { gateNumber } = body;
+  const gateName = GATE_NAMES[gateNumber];
+
+  if (!gateNumber || !gateName) {
+    return NextResponse.json({ error: 'gateNumber tidak valid (harus 1-64)' }, { status: 400 });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY belum diatur di environment variables Vercel' },
+      { status: 500 }
+    );
+  }
+
+  let anthropicResponse: Response;
+  try {
+    anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: buildPrompt(gateNumber, gateName) }],
+      }),
+    });
+  } catch (err) {
+    console.error('Gagal menghubungi Anthropic API:', err);
+    return NextResponse.json({ error: 'Gagal menghubungi Anthropic API' }, { status: 502 });
+  }
+
+  if (!anthropicResponse.ok) {
+    const errText = await anthropicResponse.text();
+    console.error('Anthropic API error:', errText);
+    return NextResponse.json(
+      { error: `Anthropic API mengembalikan error: ${anthropicResponse.status}` },
+      { status: 502 }
+    );
+  }
+
+  const anthropicData = await anthropicResponse.json();
+  const textBlock = anthropicData?.content?.find((b: { type: string }) => b.type === 'text');
+
+  if (!textBlock?.text) {
+    return NextResponse.json({ error: 'Respons Anthropic API tidak berisi teks' }, { status: 502 });
+  }
+
+  let parsed: { content_id: unknown; content_en: unknown };
+  try {
+    parsed = JSON.parse(stripCodeFences(textBlock.text));
+  } catch (err) {
+    console.error('Gagal parse JSON dari Claude:', textBlock.text);
+    return NextResponse.json(
+      { error: 'Gagal parse hasil AI sebagai JSON. Coba generate ulang.' },
+      { status: 502 }
+    );
+  }
+
+  if (!parsed.content_id || !parsed.content_en) {
+    return NextResponse.json(
+      { error: 'Hasil AI tidak lengkap (content_id/content_en hilang). Coba generate ulang.' },
+      { status: 502 }
+    );
+  }
+
+  const { error: upsertError } = await supabase.from('hd_gate_content').upsert({
+    gate_number: gateNumber,
+    content_id: parsed.content_id,
+    content_en: parsed.content_en,
+    generated_at: new Date().toISOString(),
+    reviewed: false,
+    reviewed_at: null,
+    reviewed_by: null,
+  });
+
+  if (upsertError) {
+    console.error('Gagal menyimpan ke Supabase:', upsertError);
+    return NextResponse.json({ error: 'Gagal menyimpan hasil ke database' }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, content_id: parsed.content_id, content_en: parsed.content_en });
+      }
