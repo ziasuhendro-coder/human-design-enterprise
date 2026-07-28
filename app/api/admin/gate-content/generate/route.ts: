@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/api/admin/gate-content/generate/route.ts
 // =====================================================
 // PENTING: Route ini butuh env var ANTHROPIC_API_KEY di Vercel
@@ -12,6 +12,16 @@ import { GATE_CONTENT_FIELD_KEYS } from '@/lib/humandesign/data/gateContentSchem
 
 interface GenerateRequestBody {
   gateNumber: number;
+}
+
+interface HdGateContentInsert {
+  gate_number: number;
+  content_id: unknown;
+  content_en: unknown;
+  generated_at: string;
+  reviewed: boolean;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 }
 
 function buildPrompt(gateNumber: number, gateName: string): string {
@@ -131,7 +141,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error: upsertError } = await supabase.from('hd_gate_content').upsert({
+  const insertRow: HdGateContentInsert = {
     gate_number: gateNumber,
     content_id: parsed.content_id,
     content_en: parsed.content_en,
@@ -139,7 +149,11 @@ export async function POST(request: NextRequest) {
     reviewed: false,
     reviewed_at: null,
     reviewed_by: null,
-  });
+  };
+
+  const { error: upsertError } = await supabase
+    .from('hd_gate_content')
+    .upsert<HdGateContentInsert>(insertRow);
 
   if (upsertError) {
     console.error('Gagal menyimpan ke Supabase:', upsertError);
