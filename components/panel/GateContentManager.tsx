@@ -75,14 +75,14 @@ export default function GateContentManager({ initialGates }: { initialGates: Gat
     const { data, error: fetchError } = await (supabase.from('hd_gate_content') as any)
       .select('content_id, content_en')
       .eq('gate_number', gateNumber)
-      .single<{ content_id: GateContentBody; content_en: GateContentBody }>();
+      .single();
 
     if (fetchError || !data) {
       setError(`Gagal memuat konten Gate ${gateNumber}`);
       return;
     }
     setExpandedGate(gateNumber);
-    setExpandedContent(data);
+    setExpandedContent(data as { content_id: GateContentBody; content_en: GateContentBody });
   }
 
   async function handleMarkReviewed(gateNumber: number) {
