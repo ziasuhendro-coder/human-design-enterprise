@@ -166,4 +166,9 @@ export default function HdTestPage() {
         </button>
       </form>
 
-      {error &&
+      {error && <div style={errorBoxStyle}>Error: {error}</div>}
+
+      {result && <pre style={resultBoxStyle}>{result}</pre>}
+    </div>
+  );
+}
