@@ -17,6 +17,12 @@ interface TimezoneOption {
   utc_offset_hours: number;
 }
 
+const pageStyle = {
+  minHeight: "100vh",
+  background: "#0a0a0a",
+  color: "#f0f0f0",
+};
+
 const containerStyle = {
   maxWidth: 640,
   margin: "0 auto",
@@ -24,20 +30,39 @@ const containerStyle = {
   fontFamily: "monospace",
 };
 
-const labelStyle = {
+const inputStyle = {
   display: "block",
   width: "100%",
-  padding: 8,
+  padding: 10,
+  marginTop: 6,
+  background: "#ffffff",
+  color: "#000000",
+  border: "2px solid #666666",
+  borderRadius: 6,
+  fontSize: 16,
+  boxSizing: "border-box" as const,
 };
 
 const formStyle = {
   display: "flex",
   flexDirection: "column" as const,
-  gap: 12,
+  gap: 16,
 };
 
 const buttonStyle = {
-  padding: 12,
+  padding: 14,
+  background: "#f5a623",
+  color: "#000000",
+  border: "none",
+  borderRadius: 6,
+  fontWeight: "bold" as const,
+  fontSize: 16,
+};
+
+const buttonDisabledStyle = {
+  ...buttonStyle,
+  background: "#555555",
+  color: "#aaaaaa",
 };
 
 const errorBoxStyle = {
@@ -45,6 +70,7 @@ const errorBoxStyle = {
   padding: 12,
   background: "#4a1010",
   color: "#ff8888",
+  borderRadius: 6,
 };
 
 const resultBoxStyle = {
@@ -54,10 +80,11 @@ const resultBoxStyle = {
   color: "#00ff00",
   overflowX: "auto" as const,
   fontSize: 12,
+  borderRadius: 6,
 };
 
 const noteStyle = {
-  color: "#888888",
+  color: "#aaaaaa",
   fontSize: 14,
 };
 
@@ -115,60 +142,66 @@ export default function HdTestPage() {
   }
 
   return (
-    <div style={containerStyle}>
-      <h1>Test Kalkulasi Human Design (Sementara)</h1>
-      <p style={noteStyle}>
-        Default terisi data Ra Uru Hu, pendiri Human Design. Hasil yang diharapkan:
-        Type Manifestor, Authority Splenic.
-      </p>
+    <div style={pageStyle}>
+      <div style={containerStyle}>
+        <h1>Test Kalkulasi Human Design (Sementara)</h1>
+        <p style={noteStyle}>
+          Default terisi data Ra Uru Hu, pendiri Human Design. Hasil yang diharapkan:
+          Type Manifestor, Authority Splenic.
+        </p>
 
-      <form onSubmit={handleSubmit} style={formStyle}>
-        <label>
-          Tanggal Lahir
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            style={labelStyle}
-          />
-        </label>
+        <form onSubmit={handleSubmit} style={formStyle}>
+          <label>
+            Tanggal Lahir
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              style={inputStyle}
+            />
+          </label>
 
-        <label>
-          Jam Lahir
-          <input
-            type="time"
-            value={birthTime}
-            onChange={(e) => setBirthTime(e.target.value)}
-            style={labelStyle}
-          />
-        </label>
+          <label>
+            Jam Lahir
+            <input
+              type="time"
+              value={birthTime}
+              onChange={(e) => setBirthTime(e.target.value)}
+              style={inputStyle}
+            />
+          </label>
 
-        <label>
-          Kota / Timezone
-          <select
-            value={timezoneId}
-            onChange={(e) => setTimezoneId(e.target.value)}
-            style={labelStyle}
+          <label>
+            Kota / Timezone
+            <select
+              value={timezoneId}
+              onChange={(e) => setTimezoneId(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">-- Pilih kota --</option>
+              {timezones.map((tz) => (
+                <option key={tz.id} value={tz.id}>
+                  {tz.city_name} {tz.region ? "(" + tz.region + ")" : ""} UTC
+                  {tz.utc_offset_hours >= 0 ? "+" : ""}
+                  {tz.utc_offset_hours}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !timezoneId}
+            style={loading || !timezoneId ? buttonDisabledStyle : buttonStyle}
           >
-            <option value="">-- Pilih kota --</option>
-            {timezones.map((tz) => (
-              <option key={tz.id} value={tz.id}>
-                {tz.city_name} {tz.region ? "(" + tz.region + ")" : ""} UTC
-                {tz.utc_offset_hours >= 0 ? "+" : ""}
-                {tz.utc_offset_hours}
-              </option>
-            ))}
-          </select>
-        </label>
+            {loading ? "Menghitung..." : "Hitung Chart"}
+          </button>
+        </form>
 
-        <button type="submit" disabled={loading || !timezoneId} style={buttonStyle}>
-          {loading ? "Menghitung..." : "Hitung Chart"}
-        </button>
-      </form>
+        {error && <div style={errorBoxStyle}>Error: {error}</div>}
 
-      {error && <div style={errorBoxStyle}>Error: {error}</div>}
-
-      {result && <pre style={resultBoxStyle}>{result}</pre>}
+        {result && <pre style={resultBoxStyle}>{result}</pre>}
+      </div>
     </div>
   );
 }
