@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/id/hd-test/page.tsx
 // =====================================================
 // Halaman ini SEMENTARA, khusus untuk menguji manual endpoint kalkulasi
@@ -32,13 +32,15 @@ export default function HdTestPage() {
       .from('hd_timezones')
       .select('id, city_name, region, utc_offset_hours')
       .order('city_name')
+      .returns<TimezoneOption[]>()
       .then(({ data, error: fetchError }) => {
         if (fetchError) {
           setError(`Gagal memuat daftar timezone: ${fetchError.message}`);
           return;
         }
-        setTimezones(data ?? []);
-        const montreal = data?.find((tz) => tz.city_name === 'Montreal');
+        const list = data ?? [];
+        setTimezones(list);
+        const montreal = list.find((tz) => tz.city_name === 'Montreal');
         if (montreal) setTimezoneId(montreal.id);
       });
   }, []);
@@ -77,68 +79,3 @@ export default function HdTestPage() {
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <label>
-          Tanggal Lahir
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            style={{ display: 'block', width: '100%', padding: 8 }}
-          />
-        </label>
-
-        <label>
-          Jam Lahir
-          <input
-            type="time"
-            value={birthTime}
-            onChange={(e) => setBirthTime(e.target.value)}
-            style={{ display: 'block', width: '100%', padding: 8 }}
-          />
-        </label>
-
-        <label>
-          Kota / Timezone
-          <select
-            value={timezoneId}
-            onChange={(e) => setTimezoneId(e.target.value)}
-            style={{ display: 'block', width: '100%', padding: 8 }}
-          >
-            <option value="">-- Pilih kota --</option>
-            {timezones.map((tz) => (
-              <option key={tz.id} value={tz.id}>
-                {tz.city_name} {tz.region ? `(${tz.region})` : ''} — UTC{tz.utc_offset_hours >= 0 ? '+' : ''}
-                {tz.utc_offset_hours}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit" disabled={loading || !timezoneId} style={{ padding: 12 }}>
-          {loading ? 'Menghitung...' : 'Hitung Chart'}
-        </button>
-      </form>
-
-      {error && (
-        <div style={{ marginTop: 16, padding: 12, background: '#4a1010', color: '#ff8888' }}>
-          Error: {error}
-        </div>
-      )}
-
-      {result && (
-        <pre
-          style={{
-            marginTop: 16,
-            padding: 12,
-            background: '#111',
-            color: '#0f0',
-            overflowX: 'auto',
-            fontSize: 12,
-          }}
-        >
-          {result}
-        </pre>
-      )}
-    </div>
-  );
-      }
