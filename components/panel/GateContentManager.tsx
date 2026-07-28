@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : components/panel/GateContentManager.tsx
 // =====================================================
 
@@ -69,8 +69,10 @@ export default function GateContentManager({ initialGates }: { initialGates: Gat
       return;
     }
     const supabase = createClient();
-    const { data, error: fetchError } = await supabase
-      .from('hd_gate_content')
+    // hd_gate_content belum terdaftar di Supabase generated types,
+    // jadi kita cast ke `any` supaya TypeScript tidak memaksa
+    // tabel ini bertipe `never`.
+    const { data, error: fetchError } = await (supabase.from('hd_gate_content') as any)
       .select('content_id, content_en')
       .eq('gate_number', gateNumber)
       .single<{ content_id: GateContentBody; content_en: GateContentBody }>();
@@ -86,8 +88,10 @@ export default function GateContentManager({ initialGates }: { initialGates: Gat
   async function handleMarkReviewed(gateNumber: number) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const { error: updateError } = await supabase
-      .from('hd_gate_content')
+    // hd_gate_content belum terdaftar di Supabase generated types,
+    // jadi kita cast ke `any` supaya TypeScript tidak memaksa
+    // tabel ini bertipe `never`.
+    const { error: updateError } = await (supabase.from('hd_gate_content') as any)
       .update({ reviewed: true, reviewed_at: new Date().toISOString(), reviewed_by: user?.id })
       .eq('gate_number', gateNumber);
 
@@ -148,4 +152,4 @@ export default function GateContentManager({ initialGates }: { initialGates: Gat
       ))}
     </div>
   );
-                                      }
+}
