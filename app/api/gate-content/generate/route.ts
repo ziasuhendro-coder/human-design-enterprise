@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { GATE_NAMES } from '@/lib/humandesign/data/gateNames';
 import { GATE_CONTENT_FIELD_KEYS } from '@/lib/humandesign/data/gateContentSchema';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-flash-latest';
 
 interface GenerateRequestBody {
   gateNumber: number;
