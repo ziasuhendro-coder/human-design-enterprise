@@ -22,7 +22,7 @@ import {
   CENTER_STATE_FIELD_KEYS,
 } from '@/lib/humandesign/data/entityContentSchemas';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-flash-latest';
 
 interface GenerateRequestBody {
   entityType: EntityType;
