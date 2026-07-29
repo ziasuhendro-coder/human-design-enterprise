@@ -2,16 +2,29 @@
 // AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/api/gate-content/generate/route.ts
 // =====================================================
-// PENTING: Route ini butuh env var ANTHROPIC_API_KEY di Vercel
+// PENTING: Route ini butuh env var GEMINI_API_KEY di Vercel
 // (Settings -> Environment Variables -> tambahkan untuk Production).
+// Dapatkan API key gratis di https://aistudio.google.com/apikey
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { GATE_NAMES } from '@/lib/humandesign/data/gateNames';
 import { GATE_CONTENT_FIELD_KEYS } from '@/lib/humandesign/data/gateContentSchema';
 
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
 interface GenerateRequestBody {
   gateNumber: number;
+}
+
+interface HdGateContentInsert {
+  gate_number: number;
+  content_id: unknown;
+  content_en: unknown;
+  generated_at: string;
+  reviewed: boolean;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 }
 
 function buildPrompt(gateNumber: number, gateName: string): string {
@@ -69,55 +82,54 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'gateNumber tidak valid (harus 1-64)' }, { status: 400 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY belum diatur di environment variables Vercel' },
+      { error: 'GEMINI_API_KEY belum diatur di environment variables Vercel' },
       { status: 500 }
     );
   }
 
-  let anthropicResponse: Response;
+  let geminiResponse: Response;
   try {
-    anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: buildPrompt(gateNumber, gateName) }],
-      }),
-    });
+    geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: buildPrompt(gateNumber, gateName) }] }],
+          generationConfig: { maxOutputTokens: 8192 },
+        }),
+      }
+    );
   } catch (err) {
-    console.error('Gagal menghubungi Anthropic API:', err);
-    return NextResponse.json({ error: 'Gagal menghubungi Anthropic API' }, { status: 502 });
+    console.error('Gagal menghubungi Gemini API:', err);
+    return NextResponse.json({ error: 'Gagal menghubungi Gemini API' }, { status: 502 });
   }
 
-  if (!anthropicResponse.ok) {
-    const errText = await anthropicResponse.text();
-    console.error('Anthropic API error:', errText);
+  if (!geminiResponse.ok) {
+    const errText = await geminiResponse.text();
+    console.error('Gemini API error:', errText);
     return NextResponse.json(
-      { error: `Anthropic API mengembalikan error: ${anthropicResponse.status}` },
+      { error: `Gemini API mengembalikan error: ${geminiResponse.status}` },
       { status: 502 }
     );
   }
 
-  const anthropicData = await anthropicResponse.json();
-  const textBlock = anthropicData?.content?.find((b: { type: string }) => b.type === 'text');
+  const geminiData = await geminiResponse.json();
+  const text: string | undefined = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  if (!textBlock?.text) {
-    return NextResponse.json({ error: 'Respons Anthropic API tidak berisi teks' }, { status: 502 });
+  if (!text) {
+    console.error('Respons Gemini tidak berisi teks:', JSON.stringify(geminiData));
+    return NextResponse.json({ error: 'Respons Gemini API tidak berisi teks' }, { status: 502 });
   }
 
   let parsed: { content_id: unknown; content_en: unknown };
   try {
-    parsed = JSON.parse(stripCodeFences(textBlock.text));
+    parsed = JSON.parse(stripCodeFences(text));
   } catch (err) {
-    console.error('Gagal parse JSON dari Claude:', textBlock.text);
+    console.error('Gagal parse JSON dari Gemini:', text);
     return NextResponse.json(
       { error: 'Gagal parse hasil AI sebagai JSON. Coba generate ulang.' },
       { status: 502 }
@@ -131,10 +143,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // hd_gate_content belum terdaftar di Supabase generated types,
-  // jadi kita cast ke `any` di sini supaya TypeScript tidak
-  // memaksa tabel ini bertipe `never`.
-  const { error: upsertError } = await (supabase.from('hd_gate_content') as any).upsert({
+  const insertRow: HdGateContentInsert = {
     gate_number: gateNumber,
     content_id: parsed.content_id,
     content_en: parsed.content_en,
@@ -142,7 +151,14 @@ export async function POST(request: NextRequest) {
     reviewed: false,
     reviewed_at: null,
     reviewed_by: null,
-  });
+  };
+
+  // hd_gate_content belum terdaftar di Supabase generated types,
+  // jadi kita cast ke `any` di sini supaya TypeScript tidak
+  // memaksa tabel ini bertipe `never`.
+  const { error: upsertError } = await (supabase.from('hd_gate_content') as any).upsert(
+    insertRow
+  );
 
   if (upsertError) {
     console.error('Gagal menyimpan ke Supabase:', upsertError);
