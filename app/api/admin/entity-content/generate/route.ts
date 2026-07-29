@@ -1,9 +1,10 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/api/admin/entity-content/generate/route.ts
 // =====================================================
-// PENTING: Route ini butuh env var ANTHROPIC_API_KEY di Vercel
+// PENTING: Route ini butuh env var GEMINI_API_KEY di Vercel
 // (Settings -> Environment Variables -> tambahkan untuk Production).
+// Dapatkan API key gratis di https://aistudio.google.com/apikey
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -20,6 +21,8 @@ import {
   EntityType,
   CENTER_STATE_FIELD_KEYS,
 } from '@/lib/humandesign/data/entityContentSchemas';
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 interface GenerateRequestBody {
   entityType: EntityType;
@@ -127,10 +130,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `entityKey tidak valid untuk entityType "${entityType}"` }, { status: 400 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY belum diatur di environment variables Vercel' },
+      { error: 'GEMINI_API_KEY belum diatur di environment variables Vercel' },
       { status: 500 }
     );
   }
@@ -138,47 +141,46 @@ export async function POST(request: NextRequest) {
   const fieldKeys = entityType === 'center' ? CENTER_STATE_FIELD_KEYS : config.fieldKeys;
   const prompt = buildPrompt(entityType, config.label, entityKey, fieldKeys);
 
-  let anthropicResponse: Response;
+  let geminiResponse: Response;
   try {
-    anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 8192 },
+        }),
+      }
+    );
   } catch (err) {
-    console.error('Gagal menghubungi Anthropic API:', err);
-    return NextResponse.json({ error: 'Gagal menghubungi Anthropic API' }, { status: 502 });
+    console.error('Gagal menghubungi Gemini API:', err);
+    return NextResponse.json({ error: 'Gagal menghubungi Gemini API' }, { status: 502 });
   }
 
-  if (!anthropicResponse.ok) {
-    const errText = await anthropicResponse.text();
-    console.error('Anthropic API error:', errText);
+  if (!geminiResponse.ok) {
+    const errText = await geminiResponse.text();
+    console.error('Gemini API error:', errText);
     return NextResponse.json(
-      { error: `Anthropic API mengembalikan error: ${anthropicResponse.status}` },
+      { error: `Gemini API mengembalikan error: ${geminiResponse.status}` },
       { status: 502 }
     );
   }
 
-  const anthropicData = await anthropicResponse.json();
-  const textBlock = anthropicData?.content?.find((b: { type: string }) => b.type === 'text');
+  const geminiData = await geminiResponse.json();
+  const text: string | undefined = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  if (!textBlock?.text) {
-    return NextResponse.json({ error: 'Respons Anthropic API tidak berisi teks' }, { status: 502 });
+  if (!text) {
+    console.error('Respons Gemini tidak berisi teks:', JSON.stringify(geminiData));
+    return NextResponse.json({ error: 'Respons Gemini API tidak berisi teks' }, { status: 502 });
   }
 
   let parsed: { content_id: unknown; content_en: unknown };
   try {
-    parsed = JSON.parse(stripCodeFences(textBlock.text));
+    parsed = JSON.parse(stripCodeFences(text));
   } catch (err) {
-    console.error('Gagal parse JSON dari Claude:', textBlock.text);
+    console.error('Gagal parse JSON dari Gemini:', text);
     return NextResponse.json(
       { error: 'Gagal parse hasil AI sebagai JSON. Coba generate ulang.' },
       { status: 502 }
