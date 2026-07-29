@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/id/chart/page.tsx
 // =====================================================
 
@@ -8,7 +8,13 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BodygraphSvg from "@/components/bodygraph/BodygraphSvg";
+import HeroSummaryCard from "@/components/results/HeroSummaryCard";
 import { CenterName } from "@/lib/humandesign/data/centers";
+import {
+  getTypeContentKey,
+  getAuthorityContentKey,
+  getTypeSignature,
+} from "@/lib/humandesign/data/chartValueMappings";
 
 interface TimezoneOption {
   id: string;
@@ -96,6 +102,11 @@ export default function HdChartPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Konten hasil generate dari master panel, dipetakan sesuai chart yang dihitung
+  const [typeContent, setTypeContent] = useState<Record<string, string> | null>(null);
+  const [authorityContent, setAuthorityContent] = useState<Record<string, string> | null>(null);
+  const [profileContent, setProfileContent] = useState<Record<string, string> | null>(null);
+
   useEffect(() => {
     const supabase = createClient();
     supabase
@@ -112,11 +123,42 @@ export default function HdChartPage() {
       });
   }, []);
 
+  async function loadRelatedContent(result: HumanDesignChartResult) {
+    const supabase = createClient();
+    const typeKey = getTypeContentKey(result.type);
+    const authorityKey = getAuthorityContentKey(result.authority);
+
+    // Tabel-tabel ini belum terdaftar di Supabase generated types,
+    // jadi kita cast ke `any` supaya TypeScript tidak memaksa
+    // tabel bertipe `never`.
+    const [typeRes, authorityRes, profileRes] = await Promise.all([
+      (supabase.from('hd_type_content') as any)
+        .select('content_id')
+        .eq('type_name', typeKey)
+        .maybeSingle(),
+      (supabase.from('hd_authority_content') as any)
+        .select('content_id')
+        .eq('authority_name', authorityKey)
+        .maybeSingle(),
+      (supabase.from('hd_profile_content') as any)
+        .select('content_id')
+        .eq('profile_code', result.profile)
+        .maybeSingle(),
+    ]);
+
+    setTypeContent((typeRes.data?.content_id as Record<string, string>) ?? null);
+    setAuthorityContent((authorityRes.data?.content_id as Record<string, string>) ?? null);
+    setProfileContent((profileRes.data?.content_id as Record<string, string>) ?? null);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setChart(null);
+    setTypeContent(null);
+    setAuthorityContent(null);
+    setProfileContent(null);
 
     try {
       const res = await fetch("/api/humandesign/calculate", {
@@ -128,7 +170,9 @@ export default function HdChartPage() {
       if (!res.ok) {
         setError(data.error ?? "Request gagal dengan status " + res.status);
       } else {
-        setChart(data.chart as HumanDesignChartResult);
+        const result = data.chart as HumanDesignChartResult;
+        setChart(result);
+        loadRelatedContent(result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kesalahan tidak diketahui");
@@ -140,6 +184,8 @@ export default function HdChartPage() {
   const activeGates = chart
     ? Array.from(new Set([...chart.personality.map((a) => a.gate), ...chart.design.map((a) => a.gate)]))
     : [];
+
+  const typeSig = chart ? getTypeSignature(chart.type) : null;
 
   return (
     <div style={pageStyle}>
@@ -218,22 +264,25 @@ export default function HdChartPage() {
 
         {error && <div style={errorBoxStyle}>Error: {error}</div>}
 
+        {chart && typeSig && (
+          <div style={{ marginTop: 24 }}>
+            <HeroSummaryCard
+              name={name}
+              typeLabel={TYPE_LABELS[chart.type] ?? chart.type}
+              authorityLabel={AUTHORITY_LABELS[chart.authority] ?? chart.authority}
+              profile={chart.profile}
+              signature={typeSig.signature}
+              notSelf={typeSig.notSelf}
+              typeContent={typeContent}
+              authorityContent={authorityContent}
+              profileContent={profileContent}
+            />
+          </div>
+        )}
+
         {chart && (
           <div style={resultCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Chart {name}</h2>
-
-            <div style={summaryRowStyle}>
-              <span style={{ color: "#aaaaaa" }}>Type</span>
-              <strong>{TYPE_LABELS[chart.type] ?? chart.type}</strong>
-            </div>
-            <div style={summaryRowStyle}>
-              <span style={{ color: "#aaaaaa" }}>Authority</span>
-              <strong>{AUTHORITY_LABELS[chart.authority] ?? chart.authority}</strong>
-            </div>
-            <div style={{ ...summaryRowStyle, borderBottom: "none" }}>
-              <span style={{ color: "#aaaaaa" }}>Profile</span>
-              <strong>{chart.profile}</strong>
-            </div>
+            <h2 style={{ marginTop: 0 }}>Bodygraph</h2>
 
             <div style={{ marginTop: 20 }}>
               <BodygraphSvg
@@ -262,4 +311,4 @@ export default function HdChartPage() {
       </div>
     </div>
   );
-      }
+}
