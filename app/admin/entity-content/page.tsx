@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/admin/entity-content/page.tsx
 // =====================================================
 
@@ -15,7 +15,7 @@ export default async function EntityContentPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/auth/login');
+    redirect('/login');
   }
 
   const { data: profile } = await supabase
@@ -35,4 +35,4 @@ export default async function EntityContentPage() {
       <EntityContentManager />
     </div>
   );
-                                                                                                      }
+}
