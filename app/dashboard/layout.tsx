@@ -38,12 +38,12 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+      <header className="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="font-display text-lg font-semibold text-foreground">
           Human Design <span className="text-accent">Enterprise</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right text-sm">
+        <div className="flex items-center justify-between gap-4 sm:justify-end">
+          <div className="text-sm">
             <p className="text-foreground">{profile?.full_name ?? profile?.email}</p>
             <p className="text-foreground-subtle capitalize">{profile?.role}</p>
           </div>
