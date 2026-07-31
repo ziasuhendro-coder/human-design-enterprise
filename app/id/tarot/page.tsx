@@ -28,7 +28,10 @@ const SPREAD_OPTIONS = [
 ];
 
 export default function TarotPanelPage() {
-  const supabase = createClient();
+  // NOTE: tabel hd_tarot_cards & hd_tarot_readings belum ada di lib/types/database.types.ts
+  // (belum di-generate ulang). Pakai 'as any' sementara supaya build tidak gagal.
+  // Setelah types di-generate ulang nanti, 'as any' ini boleh dihapus.
+  const supabase = createClient() as any;
 
   const [step, setStep] = useState<'pilih' | 'menarik' | 'selesai'>('pilih');
   const [spreadCount, setSpreadCount] = useState<number>(3);
@@ -258,4 +261,3 @@ export default function TarotPanelPage() {
     </div>
   );
 }
-
