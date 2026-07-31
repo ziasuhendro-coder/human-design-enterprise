@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : app/api/humandesign/life-analysis/generate/route.ts
 // =====================================================
 // PENTING: Route ini butuh env var GEMINI_API_KEY di Vercel (sudah ada).
@@ -23,13 +23,7 @@ function buildStructureHint(): string {
   ).join(',\n  ');
 }
 
-function buildPrompt(
-  typeName: string,
-  authorityName: string,
-  profileCode: string,
-  lang: 'id' | 'en'
-): string {
-  const langInstruction = lang === 'id' ? 'Bahasa Indonesia' : 'English';
+function buildPrompt(typeName: string, authorityName: string, profileCode: string): string {
   return `Kamu adalah Senior Human Design Analyst, Senior Life Coach, dan Senior Psychology Analyst berpengalaman 20+ tahun.
 
 Buat analisis kehidupan mendalam untuk seseorang dengan kombinasi Human Design berikut:
@@ -37,7 +31,7 @@ Buat analisis kehidupan mendalam untuk seseorang dengan kombinasi Human Design b
 - Authority: ${authorityName}
 - Profile: ${profileCode}
 
-Tulis dalam ${langInstruction}, gaya profesional, mudah dipahami, psikologis-praktis (bukan mistis berlebihan). Gunakan bahasa kecenderungan ("cenderung", "berpotensi", "salah satu peluang adalah"), JANGAN mengklaim kepastian masa depan — ini bukan ramalan, melainkan alat refleksi diri.
+Tulis dalam Bahasa Indonesia, gaya profesional, mudah dipahami, psikologis-praktis (bukan mistis berlebihan). Gunakan bahasa kecenderungan ("cenderung", "berpotensi", "salah satu peluang adalah"), JANGAN mengklaim kepastian masa depan — ini bukan ramalan, melainkan alat refleksi diri.
 
 Tulis 2-4 kalimat per field, mencakup SEMUA kategori dan field berikut:
 ${LIFE_ANALYSIS_CATEGORIES.map((cat) => `${cat.label}: ${cat.fields.map((f) => f.label).join(', ')}`).join('\n')}
@@ -115,16 +109,15 @@ export async function POST(request: NextRequest) {
   // jadi kita cast ke `any` supaya TypeScript tidak memaksa tabel bertipe `never`.
   if (!forceRegenerate) {
     const { data: cached } = await (supabase.from('hd_life_analysis') as any)
-      .select('content_id, content_en')
+      .select('content_id')
       .eq('combo_key', comboKey)
       .maybeSingle();
 
-    if (cached?.content_id && cached?.content_en) {
+    if (cached?.content_id) {
       return NextResponse.json({
         success: true,
         cached: true,
         content_id: cached.content_id,
-        content_en: cached.content_en,
       });
     }
   }
@@ -138,11 +131,9 @@ export async function POST(request: NextRequest) {
   }
 
   let contentId: unknown;
-  let contentEn: unknown;
 
   try {
-    contentId = await callGemini(apiKey, buildPrompt(typeName, authorityName, profileCode, 'id'));
-    contentEn = await callGemini(apiKey, buildPrompt(typeName, authorityName, profileCode, 'en'));
+    contentId = await callGemini(apiKey, buildPrompt(typeName, authorityName, profileCode));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Gagal menghubungi Gemini API';
     return NextResponse.json({ error: message }, { status: 502 });
@@ -154,7 +145,6 @@ export async function POST(request: NextRequest) {
     authority_name: authorityName,
     profile_code: profileCode,
     content_id: contentId,
-    content_en: contentEn,
     generated_at: new Date().toISOString(),
   };
 
@@ -165,5 +155,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Gagal menyimpan hasil ke database' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, cached: false, content_id: contentId, content_en: contentEn });
-    }
+  return NextResponse.json({ success: true, cached: false, content_id: contentId });
+}
