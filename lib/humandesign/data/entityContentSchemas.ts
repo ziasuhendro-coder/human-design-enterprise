@@ -1,5 +1,5 @@
 // =====================================================
-// AKSI: BUAT FILE BARU
+// AKSI: GANTI SELURUH ISI FILE
 // PATH  : lib/humandesign/data/entityContentSchemas.ts
 // =====================================================
 
@@ -11,9 +11,12 @@ export interface ContentField {
 // ---- TYPE (5 entity) ----
 export const TYPE_CONTENT_FIELDS: ContentField[] = [
   { key: 'overview', label: 'Overview' },
+  { key: 'psychology', label: 'Psychology' },
   { key: 'coreCharacteristics', label: 'Core Characteristics' },
   { key: 'strengths', label: 'Strengths' },
   { key: 'weaknesses', label: 'Weaknesses' },
+  { key: 'hiddenTalent', label: 'Hidden Talent' },
+  { key: 'blindSpot', label: 'Blind Spot' },
   { key: 'decisionStyle', label: 'Decision Style' },
   { key: 'bestEnvironment', label: 'Best Environment' },
   { key: 'communicationStyle', label: 'Communication Style' },
@@ -25,10 +28,14 @@ export const TYPE_CONTENT_FIELDS: ContentField[] = [
   { key: 'friendship', label: 'Friendship' },
   { key: 'learningStyle', label: 'Learning Style' },
   { key: 'financialStyle', label: 'Financial Style' },
+  { key: 'spiritualStyle', label: 'Spiritual Style' },
   { key: 'dailyPractice', label: 'Daily Practice' },
+  { key: 'habits', label: 'Habits' },
   { key: 'stressPattern', label: 'Stress Pattern' },
   { key: 'burnoutSigns', label: 'Burnout Signs' },
   { key: 'growthStrategy', label: 'Growth Strategy' },
+  { key: 'reflectionQuestion', label: 'Reflection Question' },
+  { key: 'actionPlan', label: 'Action Plan' },
   { key: 'aiPersonalizedAdvice', label: 'AI Personalized Advice' },
 ];
 export const TYPE_CONTENT_FIELD_KEYS = TYPE_CONTENT_FIELDS.map((f) => f.key).join(', ');
@@ -57,7 +64,9 @@ export const PROFILE_CONTENT_FIELDS: ContentField[] = [
   { key: 'lineMeaning', label: 'Makna Setiap Line' },
   { key: 'character', label: 'Karakter' },
   { key: 'potential', label: 'Potensi' },
+  { key: 'talent', label: 'Talent' },
   { key: 'shadow', label: 'Shadow' },
+  { key: 'challenge', label: 'Challenge' },
   { key: 'gift', label: 'Gift' },
   { key: 'relationship', label: 'Relationship' },
   { key: 'career', label: 'Career' },
@@ -92,7 +101,6 @@ export const CENTER_STATE_FIELDS: ContentField[] = [
   { key: 'reflectionQuestion', label: 'Reflection Question' },
 ];
 export const CENTER_STATE_FIELD_KEYS = CENTER_STATE_FIELDS.map((f) => f.key).join(', ');
-// Struktur content_id/content_en untuk Center: { defined: {...16 field}, open: {...16 field} }
 export type CenterStateBody = Record<string, string>;
 export interface CenterContentBody {
   defined: CenterStateBody;
