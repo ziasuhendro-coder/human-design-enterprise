@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import BodygraphSvg from "@/components/bodygraph/BodygraphSvg";
 import HeroSummaryCard from "@/components/results/HeroSummaryCard";
 import ExportButtons from "@/components/results/ExportButtons";
+import LifeAnalysisCard from "@/components/results/LifeAnalysisCard";
 import { CenterName } from "@/lib/humandesign/data/centers";
 import {
   getTypeContentKey,
@@ -102,12 +103,10 @@ export default function HdChartPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Konten hasil generate dari master panel, dipetakan sesuai chart yang dihitung
   const [typeContent, setTypeContent] = useState<Record<string, string> | null>(null);
   const [authorityContent, setAuthorityContent] = useState<Record<string, string> | null>(null);
   const [profileContent, setProfileContent] = useState<Record<string, string> | null>(null);
 
-  // Refs untuk export JPG (Hero Summary + Bodygraph + Channel) dan PDF (gambar Bodygraph saja)
   const exportContainerRef = useRef<HTMLDivElement>(null);
   const bodygraphOnlyRef = useRef<HTMLDivElement>(null);
 
@@ -132,9 +131,6 @@ export default function HdChartPage() {
     const typeKey = getTypeContentKey(result.type);
     const authorityKey = getAuthorityContentKey(result.authority);
 
-    // Tabel-tabel ini belum terdaftar di Supabase generated types,
-    // jadi kita cast ke `any` supaya TypeScript tidak memaksa
-    // tabel bertipe `never`.
     const [typeRes, authorityRes, profileRes] = await Promise.all([
       (supabase.from('hd_type_content') as any)
         .select('content_id')
@@ -192,6 +188,8 @@ export default function HdChartPage() {
   const typeSig = chart ? getTypeSignature(chart.type) : null;
   const typeLabel = chart ? (TYPE_LABELS[chart.type] ?? chart.type) : "";
   const authorityLabel = chart ? (AUTHORITY_LABELS[chart.authority] ?? chart.authority) : "";
+  const typeKeyForContent = chart ? getTypeContentKey(chart.type) : "";
+  const authorityKeyForContent = chart ? getAuthorityContentKey(chart.authority) : "";
 
   return (
     <div style={pageStyle}>
@@ -326,6 +324,14 @@ export default function HdChartPage() {
             typeContent={typeContent}
             authorityContent={authorityContent}
             profileContent={profileContent}
+          />
+        )}
+
+        {chart && (
+          <LifeAnalysisCard
+            typeName={typeKeyForContent}
+            authorityName={authorityKeyForContent}
+            profileCode={chart.profile}
           />
         )}
       </div>
