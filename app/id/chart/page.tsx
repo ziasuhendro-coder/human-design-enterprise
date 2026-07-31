@@ -5,10 +5,11 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BodygraphSvg from "@/components/bodygraph/BodygraphSvg";
 import HeroSummaryCard from "@/components/results/HeroSummaryCard";
+import ExportButtons from "@/components/results/ExportButtons";
 import { CenterName } from "@/lib/humandesign/data/centers";
 import {
   getTypeContentKey,
@@ -90,7 +91,6 @@ const buttonStyle = {
 const buttonDisabledStyle = { ...buttonStyle, background: "#555555", color: "#aaaaaa" };
 const errorBoxStyle = { marginTop: 16, padding: 12, background: "#4a1010", color: "#ff8888", borderRadius: 6 };
 const resultCardStyle = { marginTop: 24, padding: 20, background: "#151515", borderRadius: 10 };
-const summaryRowStyle = { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #333333" };
 
 export default function HdChartPage() {
   const [timezones, setTimezones] = useState<TimezoneOption[]>([]);
@@ -106,6 +106,10 @@ export default function HdChartPage() {
   const [typeContent, setTypeContent] = useState<Record<string, string> | null>(null);
   const [authorityContent, setAuthorityContent] = useState<Record<string, string> | null>(null);
   const [profileContent, setProfileContent] = useState<Record<string, string> | null>(null);
+
+  // Refs untuk export JPG (Hero Summary + Bodygraph + Channel) dan PDF (gambar Bodygraph saja)
+  const exportContainerRef = useRef<HTMLDivElement>(null);
+  const bodygraphOnlyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -186,6 +190,8 @@ export default function HdChartPage() {
     : [];
 
   const typeSig = chart ? getTypeSignature(chart.type) : null;
+  const typeLabel = chart ? (TYPE_LABELS[chart.type] ?? chart.type) : "";
+  const authorityLabel = chart ? (AUTHORITY_LABELS[chart.authority] ?? chart.authority) : "";
 
   return (
     <div style={pageStyle}>
@@ -265,11 +271,11 @@ export default function HdChartPage() {
         {error && <div style={errorBoxStyle}>Error: {error}</div>}
 
         {chart && typeSig && (
-          <div style={{ marginTop: 24 }}>
+          <div ref={exportContainerRef} style={{ marginTop: 24 }}>
             <HeroSummaryCard
               name={name}
-              typeLabel={TYPE_LABELS[chart.type] ?? chart.type}
-              authorityLabel={AUTHORITY_LABELS[chart.authority] ?? chart.authority}
+              typeLabel={typeLabel}
+              authorityLabel={authorityLabel}
               profile={chart.profile}
               signature={typeSig.signature}
               notSelf={typeSig.notSelf}
@@ -277,36 +283,50 @@ export default function HdChartPage() {
               authorityContent={authorityContent}
               profileContent={profileContent}
             />
+
+            <div style={resultCardStyle}>
+              <h2 style={{ marginTop: 0 }}>Bodygraph</h2>
+
+              <div ref={bodygraphOnlyRef} style={{ marginTop: 20, background: "#151515" }}>
+                <BodygraphSvg
+                  definedCenters={chart.definedCenters}
+                  definedChannelGatePairs={chart.definedChannels.map((c) => c.gates)}
+                  activeGates={activeGates}
+                />
+              </div>
+
+              {chart.definedChannels.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <h3 style={{ fontSize: 14, color: "#aaaaaa", marginBottom: 8 }}>
+                    Channel Aktif ({chart.definedChannels.length})
+                  </h3>
+                  <ul style={{ paddingLeft: 20, margin: 0, fontSize: 14 }}>
+                    {chart.definedChannels.map((c) => (
+                      <li key={c.gates.join("-")}>
+                        {c.gates[0]}-{c.gates[1]}: {c.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {chart && (
-          <div style={resultCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Bodygraph</h2>
-
-            <div style={{ marginTop: 20 }}>
-              <BodygraphSvg
-                definedCenters={chart.definedCenters}
-                definedChannelGatePairs={chart.definedChannels.map((c) => c.gates)}
-                activeGates={activeGates}
-              />
-            </div>
-
-            {chart.definedChannels.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 14, color: "#aaaaaa", marginBottom: 8 }}>
-                  Channel Aktif ({chart.definedChannels.length})
-                </h3>
-                <ul style={{ paddingLeft: 20, margin: 0, fontSize: 14 }}>
-                  {chart.definedChannels.map((c) => (
-                    <li key={c.gates.join("-")}>
-                      {c.gates[0]}-{c.gates[1]}: {c.name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+        {chart && typeSig && (
+          <ExportButtons
+            jpgTargetRef={exportContainerRef}
+            bodygraphRef={bodygraphOnlyRef}
+            name={name}
+            typeLabel={typeLabel}
+            authorityLabel={authorityLabel}
+            profile={chart.profile}
+            signature={typeSig.signature}
+            notSelf={typeSig.notSelf}
+            typeContent={typeContent}
+            authorityContent={authorityContent}
+            profileContent={profileContent}
+          />
         )}
       </div>
     </div>
