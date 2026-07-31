@@ -1,3 +1,8 @@
+// =====================================================
+// AKSI: GANTI SELURUH ISI FILE
+// PATH  : package.json
+// =====================================================
+
 {
   "name": "human-design-enterprise",
   "version": "1.0.0",
@@ -13,6 +18,8 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "astronomy-engine": "^2.1.19",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "next": "14.2.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
