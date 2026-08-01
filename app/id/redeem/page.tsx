@@ -43,8 +43,21 @@ export default function RedeemLisensiPage() {
 
     setLoading(false);
 
-    if (fnError || data?.error) {
-      setError(data?.error ?? 'Gagal menukar kode lisensi.');
+    if (fnError) {
+      // Edge Function balas status non-2xx. Ambil pesan asli dari body response-nya.
+      let pesanAsli = 'Gagal menukar kode lisensi.';
+      try {
+        const bodyJson = await fnError.context?.json?.();
+        if (bodyJson?.error) pesanAsli = bodyJson.error;
+      } catch {
+        // biarkan pesan default kalau body tidak bisa dibaca
+      }
+      setError(pesanAsli);
+      return;
+    }
+
+    if (data?.error) {
+      setError(data.error);
       return;
     }
 
