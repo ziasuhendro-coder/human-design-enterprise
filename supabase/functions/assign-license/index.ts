@@ -1,16 +1,21 @@
-// =====================================================
-// AKSI: GANTI ISI FILE YANG SUDAH ADA
-// PATH  : supabase/functions/assign-license/index.ts
-// =====================================================
+// =========================================================
+// Edge Function: assign-license
+// Deploy ke: supabase/functions/assign-license/index.ts
+// Panggil dari client: supabase.functions.invoke('assign-license', { body: { code } })
+// URL: https://slcntxumgmlxluhbfrbn.supabase.co/functions/v1/assign-license
+// =========================================================
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+const ALL_PANELS = [
+  'lumina', 'primbon', 'tarot', 'fengshui', 'zodiak', 'grafologi', 'nomorologi',
+];
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+Deno.serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
 
-Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -18,125 +23,126 @@ Deno.serve(async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Tidak terautentikasi.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
+    // Client biasa untuk verifikasi identitas user yang memanggil
     const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Pastikan pemanggil adalah master
-    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseUser.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Sesi tidak valid.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: callerProfile, error: profileErr } = await supabaseAdmin
-      .from('hd_users')
-      .select('role, email')
-      .eq('id', user.id)
-      .single();
-
-    if (profileErr || callerProfile?.role !== 'master') {
-      return new Response(JSON.stringify({ error: 'Forbidden: master role required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Ambil input
-    const { target_user_id, license_type, notes } = await req.json();
-
-    const validTypes = ['trial', '1_month', '6_month', '1_year', 'permanent'];
-    if (!target_user_id || !validTypes.includes(license_type)) {
-      return new Response(JSON.stringify({ error: 'Invalid input' }), {
+    const { code } = await req.json();
+    if (!code || typeof code !== 'string') {
+      return new Response(JSON.stringify({ error: 'Kode lisensi wajib diisi.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Cek target user ada
-    const { data: targetUser, error: targetErr } = await supabaseAdmin
-      .from('hd_users')
-      .select('id, email')
-      .eq('id', target_user_id)
+    // Client dengan service role untuk operasi yang butuh hak lebih tinggi
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data: license, error: licenseError } = await supabaseAdmin
+      .from('hd_licenses')
+      .select('*')
+      .eq('code', code.trim().toUpperCase())
       .single();
 
-    if (targetErr || !targetUser) {
-      return new Response(JSON.stringify({ error: 'Target user not found' }), {
+    if (licenseError || !license) {
+      return new Response(JSON.stringify({ error: 'Kode lisensi tidak ditemukan.' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Generate kode via fungsi SQL
-    const { data: codeData, error: codeErr } = await supabaseAdmin
-      .rpc('hd_generate_license_code');
-
-    if (codeErr || !codeData) {
-      throw new Error('Failed to generate license code');
+    if (license.assigned_user_id && license.assigned_user_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Kode lisensi sudah dipakai orang lain.' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Hitung expiry via fungsi SQL
-    const { data: expiryData, error: expiryErr } = await supabaseAdmin
-      .rpc('hd_calculate_license_expiry', { p_license_type: license_type });
-
-    if (expiryErr || !expiryData) {
-      throw new Error('Failed to calculate expiry');
+    if (license.status !== 'active') {
+      return new Response(JSON.stringify({ error: 'Kode lisensi tidak aktif.' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Insert lisensi
-    const { data: license, error: insertErr } = await supabaseAdmin
-      .from('hd_licenses')
-      .insert({
-        code: codeData,
-        license_type,
-        status: 'active',
-        assigned_user_id: target_user_id,
-        assigned_by: user.id,
-        expires_at: expiryData,
-        notes: notes ?? null,
-      })
-      .select()
-      .single();
+    if (new Date(license.expires_at) < new Date()) {
+      return new Response(JSON.stringify({ error: 'Kode lisensi sudah kedaluwarsa.' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    if (insertErr) throw insertErr;
+    // Klaim lisensi untuk user ini (kalau belum pernah diklaim)
+    if (!license.assigned_user_id) {
+      const { error: updateError } = await supabaseAdmin
+        .from('hd_licenses')
+        .update({ assigned_user_id: user.id, activated_at: new Date().toISOString() })
+        .eq('id', license.id);
 
-    // Catat ke audit log — sesuai struktur tabel hd_audit_log yang sebenarnya
-    await supabaseAdmin.from('hd_audit_log').insert({
-      actor_id: user.id,
-      actor_email: callerProfile.email,
-      action: 'license_assigned',
-      target_id: license.id,
-      target_table: 'hd_licenses',
-      description: `Lisensi ${license.code} (${license_type}) diberikan ke ${targetUser.email}`,
-      metadata: {
-        license_code: license.code,
-        target_user_email: targetUser.email,
-        license_type,
-      },
-    });
+      if (updateError) {
+        return new Response(JSON.stringify({ error: 'Gagal mengklaim lisensi.' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
-    return new Response(JSON.stringify({ success: true, license }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Tentukan panel mana saja yang dibuka
+    const panelsToGrant: string[] =
+      license.panel_codes && license.panel_codes.length > 0
+        ? license.panel_codes
+        : ALL_PANELS;
 
+    const rows = panelsToGrant.map((panel_code) => ({
+      user_id: user.id,
+      panel_code,
+      license_key_id: license.id,
+      is_active: true,
+      expires_at: license.expires_at,
+    }));
+
+    const { error: accessError } = await supabaseAdmin
+      .from('hd_panel_access')
+      .upsert(rows, { onConflict: 'user_id,panel_code' });
+
+    if (accessError) {
+      return new Response(JSON.stringify({ error: 'Gagal memberikan akses panel.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, panels_granted: panelsToGrant }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }), {
+    console.error('assign-license error:', err);
+    return new Response(JSON.stringify({ error: 'Terjadi kesalahan server.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
