@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   deploy:
@@ -20,42 +20,15 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           FUNCTION_NAME="assign-license"
-          FUNCTION_BODY=$(cat supabase/functions/${FUNCTION_NAME}/index.ts | jq -Rs .)
 
-          # Coba update dulu (kalau function sudah pernah ada)
-          UPDATE_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X PATCH \
-            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/${FUNCTION_NAME}" \
+          curl -L -X POST "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/deploy?slug=${FUNCTION_NAME}" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"verify_jwt\": true,
-              \"body\": ${FUNCTION_BODY}
-            }")
+            -F "metadata={\"entrypoint_path\":\"index.ts\",\"name\":\"${FUNCTION_NAME}\"};type=application/json" \
+            -F "file=@supabase/functions/${FUNCTION_NAME}/index.ts;filename=index.ts" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -o /tmp/deploy_response.json
 
-          echo "Update status: ${UPDATE_STATUS}"
-          cat /tmp/response.json
-
-          if [ "$UPDATE_STATUS" -eq 404 ]; then
-            echo "Function belum ada, membuat baru..."
-            CREATE_STATUS=$(curl -s -o /tmp/response2.json -w "%{http_code}" -X POST \
-              "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions" \
-              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"slug\": \"${FUNCTION_NAME}\",
-                \"name\": \"${FUNCTION_NAME}\",
-                \"verify_jwt\": true,
-                \"body\": ${FUNCTION_BODY}
-              }")
-
-            echo "Create status: ${CREATE_STATUS}"
-            cat /tmp/response2.json
-
-            if [ "$CREATE_STATUS" -ge 300 ]; then
-              exit 1
-            fi
-          elif [ "$UPDATE_STATUS" -ge 300 ]; then
-            exit 1
-          fi
+          echo "--- Response ---"
+          cat /tmp/deploy_response.json
 
           echo "Deploy selesai."
