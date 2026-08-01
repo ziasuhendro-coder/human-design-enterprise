@@ -42,7 +42,7 @@ export default function TarotPanelPage() {
       .select('*');
 
     if (error || !allCards || allCards.length === 0) {
-      alert('Gagal memuat dek kartu. Coba lagi.');
+      alert('Gagal memuat dek kartu: ' + (error?.message ?? 'data kosong'));
       setLoading(false);
       return;
     }
