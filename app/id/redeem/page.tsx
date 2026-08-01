@@ -37,7 +37,7 @@ export default function RedeemLisensiPage() {
       return;
     }
 
-    const { data, error: fnError } = await supabase.functions.invoke('redeem-license-key', {
+    const { data, error: fnError } = await supabase.functions.invoke('assign-license', {
       body: { code: kode.trim() },
     });
 
@@ -107,4 +107,3 @@ export default function RedeemLisensiPage() {
     </div>
   );
 }
-
