@@ -28,6 +28,15 @@ function generateKode(): string {
   return `HDE-${bagian()}-${bagian()}`;
 }
 
+async function salinKeClipboard(teks: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(teks);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function X9PanelPage() {
   // NOTE: pakai 'as any' karena panel_codes & beberapa tabel belum di lib/types/database.types.ts
   const supabase = createClient() as any;
@@ -37,6 +46,7 @@ export default function X9PanelPage() {
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [kodeBaru, setKodeBaru] = useState<string | null>(null);
+  const [kodeTersalin, setKodeTersalin] = useState<string | null>(null);
   const [daftarLisensi, setDaftarLisensi] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +112,14 @@ export default function X9PanelPage() {
     setKodeBaru(kode);
     setNotes('');
     muatDaftarLisensi();
+  }
+
+  async function salinKode(kode: string) {
+    const berhasil = await salinKeClipboard(kode);
+    if (berhasil) {
+      setKodeTersalin(kode);
+      setTimeout(() => setKodeTersalin(null), 2000);
+    }
   }
 
   return (
@@ -179,10 +197,16 @@ export default function X9PanelPage() {
 
           {kodeBaru && (
             <div className="rounded-xl border border-[#a68a56] bg-[#221c2c] px-5 py-5 text-center">
-              <p className="text-xs uppercase tracking-widest text-[#8d84a0] mb-1">
+              <p className="text-xs uppercase tracking-widest text-[#8d84a0] mb-2">
                 Kode Baru Dibuat
               </p>
-              <p className="font-mono text-xl text-[#f4ecd8] tracking-wider">{kodeBaru}</p>
+              <p className="font-mono text-xl text-[#f4ecd8] tracking-wider mb-3">{kodeBaru}</p>
+              <button
+                onClick={() => salinKode(kodeBaru)}
+                className="rounded-lg border border-[#a68a56] text-[#a68a56] text-sm px-4 py-2"
+              >
+                {kodeTersalin === kodeBaru ? '✓ Tersalin' : 'Salin Kode'}
+              </button>
             </div>
           )}
         </div>
@@ -201,17 +225,25 @@ export default function X9PanelPage() {
                   key={lic.id}
                   className="rounded-lg border border-[#332c40] bg-[#171420] px-4 py-3"
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono text-sm text-[#f4ecd8]">{lic.code}</span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        lic.assigned_user_id
-                          ? 'bg-[#3d5c46] text-[#8fb89a]'
-                          : 'bg-[#332c40] text-[#c9bfa8]'
-                      }`}
-                    >
-                      {lic.assigned_user_id ? 'Terpakai' : 'Belum dipakai'}
-                    </span>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="font-mono text-sm text-[#f4ecd8] truncate">{lic.code}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => salinKode(lic.code)}
+                        className="text-xs px-2 py-1 rounded border border-[#4a3f5c] text-[#c9bfa8]"
+                      >
+                        {kodeTersalin === lic.code ? '✓' : 'Salin'}
+                      </button>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          lic.assigned_user_id
+                            ? 'bg-[#3d5c46] text-[#8fb89a]'
+                            : 'bg-[#332c40] text-[#c9bfa8]'
+                        }`}
+                      >
+                        {lic.assigned_user_id ? 'Terpakai' : 'Belum dipakai'}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-xs text-[#8d84a0] mt-1">
                     {lic.license_type} · {lic.panel_codes ? lic.panel_codes.join(', ') : 'Semua panel'}
