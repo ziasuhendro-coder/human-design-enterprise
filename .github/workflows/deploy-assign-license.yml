@@ -1,10 +1,10 @@
-name: Deploy Edge Function - redeem-license-key
+name: Deploy Edge Function - assign-license
 
 on:
   push:
     branches: [main]
     paths:
-      - 'supabase/functions/redeem-license-key/**'
+      - 'supabase/functions/assign-license/**'
   workflow_dispatch: {}
 
 jobs:
@@ -19,8 +19,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          curl -L -X POST "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/deploy?slug=redeem-license-key" \
+          curl -L -X POST "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/deploy?slug=assign-license" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-            -F 'metadata={"entrypoint_path":"index.ts","name":"redeem-license-key"};type=application/json' \
-            -F "file=@supabase/functions/redeem-license-key/index.ts;filename=index.ts"
-
+            -F 'metadata={"entrypoint_path":"index.ts","name":"assign-license"};type=application/json' \
+            -F "file=@supabase/functions/assign-license/index.ts;filename=index.ts"
