@@ -4,7 +4,7 @@
 // Panggil dari client: supabase.functions.invoke('assign-license', { body: { code } })
 // URL: https://slcntxumgmlxluhbfrbn.supabase.co/functions/v1/assign-license
 // =========================================================
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const ALL_PANELS = [
   'lumina', 'primbon', 'tarot', 'fengshui', 'zodiak', 'grafologi', 'nomorologi',
