@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isAuthRoute) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/dashboard';
+    redirectUrl.pathname = '/id/panel';
     return NextResponse.redirect(redirectUrl);
   }
 
