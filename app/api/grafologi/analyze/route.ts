@@ -65,14 +65,23 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const rawText: string =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
+
+    // Gemini kadang nambah teks pembuka/penutup meski diminta JSON murni.
+    // Ambil substring dari '{' pertama sampai '}' terakhir biar lebih toleran.
+    const mulai = rawText.indexOf('{');
+    const akhir = rawText.lastIndexOf('}');
+    const cleaned =
+      mulai !== -1 && akhir !== -1 ? rawText.slice(mulai, akhir + 1) : rawText.trim();
 
     let hasil;
     try {
       hasil = JSON.parse(cleaned);
     } catch {
-      console.error('Gagal parse JSON dari Gemini:', rawText);
-      return NextResponse.json({ error: 'Gagal memproses hasil analisis.' }, { status: 500 });
+      console.error('Gagal parse JSON dari Gemini. Raw response:', rawText);
+      return NextResponse.json(
+        { error: 'Gagal memproses hasil analisis. Coba lagi.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ hasil });
@@ -81,4 +90,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan server.' }, { status: 500 });
   }
 }
-
