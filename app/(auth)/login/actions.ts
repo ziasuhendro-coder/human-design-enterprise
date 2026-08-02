@@ -97,5 +97,5 @@ export async function loginAction(
     return { error: GENERIC_AUTH_ERROR, fieldErrors: null };
   }
 
-  redirect('/dashboard');
+  redirect('/id/panel');
 }
